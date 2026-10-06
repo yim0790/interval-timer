@@ -62,6 +62,17 @@ button:focus-visible{outline:2px solid var(--warm);outline-offset:2px}
 .rec .t{font-family:var(--num);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
 .rec .x{font-size:11px;color:var(--dim);margin-left:6px}
 .empty{font-size:13px;color:var(--dim);padding:8px 0}
+.more{margin-top:12px;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:14px;font-weight:500;color:var(--fg)}
+/* 전체 기록 */
+.recs-s{overflow-y:auto;padding:0 16px 28px}
+.recs-top{position:sticky;top:0;background:var(--bg);display:flex;align-items:center;gap:12px;padding:16px 0 12px;border-bottom:1px solid var(--line);z-index:2}
+.recs-top h2{margin:0;font-size:20px;flex:1}
+.recs-top span{font-size:12px;color:var(--muted)}
+.back{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px;font-weight:500}
+.rec.full{grid-template-columns:1fr auto auto;align-items:center}
+.rec.full .info{display:flex;flex-direction:column;gap:3px;min-width:0}
+.del{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted)}
+.del.arm{background:var(--hot);border-color:var(--hot);color:#fff}
 
 /* 실행 */
 .top{padding:14px 16px 12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
@@ -144,7 +155,13 @@ button:focus-visible{outline:2px solid var(--warm);outline-offset:2px}
     <div>
       <p class="label">최근 기록</p>
       <div class="recs" id="recs"></div>
+      <button type="button" class="more" id="bAllRecs" hidden>전체 기록 보기</button>
     </div>
+  </section>
+
+  <section class="screen recs-s" id="sRecs" hidden>
+    <div class="recs-top"><button type="button" class="back" id="bRecsBack">‹ 메인으로</button><h2>전체 기록</h2><span id="recCount"></span></div>
+    <div class="recs" id="recsAll"></div>
   </section>
 
   <section class="screen" id="sRun" hidden>
@@ -194,9 +211,24 @@ PROGRAMS.forEach(p=>{let t=0;p.starts=p.segs.map(s=>{const a=t;t+=s.m*60;return 
 /* ===== 기록 (기기 저장) ===== */
 const REC_KEY='interval-timer-records';
 function loadRecs(){try{return JSON.parse(localStorage.getItem(REC_KEY))||[]}catch(e){return[]}}
-function saveRec(r){const a=loadRecs();a.unshift(r);try{localStorage.setItem(REC_KEY,JSON.stringify(a.slice(0,200)))}catch(e){}}
+function saveRec(r){const a=loadRecs();a.unshift(r);try{localStorage.setItem(REC_KEY,JSON.stringify(a.slice(0,1000)))}catch(e){}}
+function recDate(r){if(!r.ts)return r.date;const d=new Date(r.ts);return d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())}
+function renderAllRecs(){
+  const a=loadRecs();
+  $('recCount').textContent=a.length+'건';
+  $('recsAll').innerHTML=a.length?a.map((r,i)=>`<div class="rec full"><div class="info"><span class="d">${recDate(r)}</span><span>${r.title}${r.done?'':'<span class="x">중단</span>'}</span></div><span class="t">${fmt(r.sec)}</span><button type="button" class="del" data-i="${i}" data-ts="${r.ts||''}">삭제</button></div>`).join('')
+    :'<div class="empty">기록이 없습니다.</div>';
+}
+function delRec(i,ts){
+  const a=loadRecs();
+  const k=ts?a.findIndex(r=>r.ts===ts):i;   // 같은 기록인지 시각으로 재확인 후 삭제
+  if(k<0||k>=a.length)return;
+  a.splice(k,1);try{localStorage.setItem(REC_KEY,JSON.stringify(a))}catch(e){}
+  renderAllRecs();
+}
 function renderRecs(){
-  const a=loadRecs().slice(0,10);
+  const all=loadRecs(),a=all.slice(0,3);
+  $('bAllRecs').hidden=!all.length;
   $('recs').innerHTML=a.length?a.map(r=>`<div class="rec"><span class="d">${r.date}</span><span>${r.title}${r.done?'':'<span class="x">중단</span>'}</span><span class="t">${fmt(r.sec)}</span></div>`).join('')
     :'<div class="empty">아직 기록이 없습니다. 훈련을 마치면 여기에 쌓입니다.</div>';
 }
@@ -266,7 +298,7 @@ function unlockScreen(){try{wake&&wake.release()}catch(e){}wake=null}
 /* ===== 실행 상태 ===== */
 let P=null,t0=0,state='idle',pausedAt=0,cur=-1,lastSec=-1,raf=0,timer=0;
 function elapsed(){if(state==='run')return Math.min(P.total,Math.max(0,ctx.currentTime-t0));if(state==='pause')return pausedAt;return 0}
-function show(id){['sHome','sRun','sDone'].forEach(s=>$(s).hidden=s!==id)}
+function show(id){['sHome','sRun','sDone','sRecs'].forEach(s=>$(s).hidden=s!==id)}
 
 async function openRun(p){
   P=p;state='idle';cur=-1;lastSec=-1;
@@ -358,10 +390,21 @@ function finish(full){
   history.replaceState({done:1},'');show('sDone');
 }
 function goHome(){if(state==='done'||state==='idle'){state='idle';P=null;renderHome();show('sHome')}}
+function openRecs(){renderAllRecs();show('sRecs');$('sRecs').scrollTop=0;history.pushState({recs:1},'')}
 
 /* ===== 이벤트 ===== */
 $('cards').addEventListener('click',e=>{const c=e.target.closest('.card');if(c)openRun(PROGRAMS.find(p=>p.id===c.dataset.id))});
 $('bKeep').onclick=()=>{$('rSheet').hidden=true};
+$('bAllRecs').onclick=openRecs;
+$('bRecsBack').onclick=()=>history.back();
+// 삭제: 실수 방지를 위해 두 번 눌러야 삭제 (첫 번째 탭 → '삭제 확인', 3초 지나면 원래대로)
+$('recsAll').addEventListener('click',e=>{
+  const b=e.target.closest('.del');if(!b)return;
+  if(b.classList.contains('arm')){delRec(+b.dataset.i,b.dataset.ts);return}
+  $('recsAll').querySelectorAll('.del.arm').forEach(x=>{x.classList.remove('arm');x.textContent='삭제'});
+  b.classList.add('arm');b.textContent='삭제 확인';
+  setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent='삭제'}},3000);
+});
 $('bQuit').onclick=()=>finish(false);
 // 종료만 하기: 기록을 남기지 않고 소리·타이머를 정리한 뒤 홈으로
 $('bDiscard').onclick=()=>{
