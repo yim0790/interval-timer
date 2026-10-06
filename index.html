@@ -1,0 +1,381 @@
+<!doctype html>
+<!-- 인터벌 타이머 PWA — 프로그램 선택·세로 단계 진행·여자 음성(mp3)+비프 안내·간단 기록 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>인터벌 타이머</title>
+<!-- ▼ PWA 태그 -->
+<meta name="description" content="천국의 계단·트레드밀 인터벌 훈련 타이머">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#10151C">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="인터벌">
+<!-- ▲ PWA 태그 끝 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+  --bg:#10151C; --surface:#18202A; --surface2:#1F2935; --line:#2A3644;
+  --fg:#EEF2F6; --muted:#8C99AA; --dim:#5B6878;
+  --warm:#F2C14E; --mid:#F28C38; --hot:#FF4D5E; --cool:#3CC8B4; --end:#9AA7B8;
+  --num:"Barlow Condensed","Noto Sans KR",system-ui,sans-serif;
+  --txt:"Noto Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--txt);overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--warm);outline-offset:2px}
+.app{max-width:480px;margin:0 auto;height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden;padding-top:env(safe-area-inset-top,0px)}
+.screen{flex:1;display:flex;flex-direction:column;min-height:0}
+
+/* 홈 */
+.home{overflow-y:auto;padding:20px 16px 28px;gap:22px}
+.brand{display:flex;align-items:baseline;justify-content:space-between}
+.brand h1{font-size:22px;margin:0;font-weight:700;letter-spacing:-.02em}
+.brand span{font-size:12px;color:var(--muted)}
+.label{font-size:12px;color:var(--muted);letter-spacing:.06em;margin:0 0 10px}
+.cards{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:left;display:flex;flex-direction:column;gap:12px;width:100%}
+.card:active{background:var(--surface2)}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.cat{font-size:12px;color:var(--muted)}
+.card h2{font-size:18px;margin:2px 0 0;font-weight:700}
+.dur{font-family:var(--num);font-size:34px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.dur small{font-size:13px;color:var(--muted);font-family:var(--txt);margin-left:2px}
+.strip{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px}
+.strip i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--muted);margin-top:12px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.recs{display:flex;flex-direction:column}
+.rec{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--line);font-size:14px}
+.rec .d{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.rec .t{font-family:var(--num);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.rec .x{font-size:11px;color:var(--dim);margin-left:6px}
+.empty{font-size:13px;color:var(--dim);padding:8px 0}
+
+/* 실행 */
+.top{padding:14px 16px 12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.top-row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.top-row span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.top-row span:last-child{font-variant-numeric:tabular-nums;flex:none}
+.total{display:flex;align-items:baseline;justify-content:space-between}
+.total .k{font-size:12px;color:var(--muted)}
+.total .v{font-family:var(--num);font-size:46px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.bar{position:relative;display:flex;height:10px;gap:2px}
+.bar i{display:block;height:100%;opacity:.28;border-radius:2px}
+.bar i.on{opacity:1}
+.head{position:absolute;top:-4px;width:3px;height:18px;background:var(--fg);border-radius:2px;transform:translateX(-1px)}
+.list{flex:1;overflow-y:auto;padding:14px 16px 130px;scroll-behavior:smooth}
+.step{position:relative;display:grid;grid-template-columns:28px 1fr auto;gap:12px;padding:10px 0;align-items:center}
+.step::before{content:"";position:absolute;left:13px;top:0;bottom:0;width:2px;background:var(--line)}
+.step:first-child::before{top:50%}
+.step:last-child::before{bottom:50%}
+.dot{position:relative;z-index:1;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:var(--num);font-size:14px;font-weight:600;background:var(--bg);border:2px solid var(--c);color:var(--c)}
+.nm{min-width:0}
+.nm b{font-size:16px;font-weight:700;color:var(--c)}
+.nm p{margin:2px 0 0;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.len{font-family:var(--num);font-size:20px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.step.done{opacity:.4}
+.step.done .dot{background:var(--c);color:var(--bg)}
+.step.end .len{font-size:13px;font-family:var(--txt)}
+.step.cur{grid-template-columns:28px 1fr;align-items:start;padding:8px 0}
+.step.cur .dot{background:var(--c);color:var(--bg);box-shadow:0 0 0 6px color-mix(in srgb,var(--c) 22%,transparent)}
+.now{background:var(--surface);border:1px solid color-mix(in srgb,var(--c) 55%,var(--line));border-radius:16px;padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.now-h{display:flex;justify-content:space-between;align-items:center}
+.chip{font-size:13px;font-weight:700;color:var(--bg);background:var(--c);border-radius:999px;padding:3px 10px}
+.pos{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.cd-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+.cd{font-family:var(--num);font-weight:700;font-size:96px;line-height:.9;font-variant-numeric:tabular-nums}
+.beep{font-size:13px;font-weight:700;color:var(--c);padding-bottom:12px;visibility:hidden}
+.beep.on{visibility:visible;animation:pulse .5s ease-in-out infinite alternate}
+@keyframes pulse{from{opacity:.35}to{opacity:1}}
+.prog{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--c);width:0}
+.voice{display:flex;gap:8px;align-items:flex-start;font-size:14px;line-height:1.45;background:var(--surface2);border-radius:10px;padding:9px 11px}
+.voice svg{flex:none;margin-top:2px}
+.voice.miss{color:var(--muted)}
+.ctrl{z-index:3;position:absolute;left:0;right:0;bottom:0;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 70%,transparent);display:flex;gap:10px}
+.btn{border:none;border-radius:14px;padding:16px;font-size:17px;font-weight:700}
+.btn:disabled{opacity:.45}
+.btn.main{flex:1;background:var(--fg);color:var(--bg)}
+.btn.sub{background:var(--surface2);border:1px solid var(--line);min-width:96px}
+.btn.go{flex:1;background:var(--hot);color:#fff}
+.status{font-size:12px;color:var(--muted);text-align:center;padding:0 16px 6px}
+.status.warn{color:var(--warm)}
+.sheet{position:absolute;inset:0;background:rgba(5,8,12,.72);display:flex;align-items:flex-end;z-index:5}
+.sheet-in{width:100%;background:var(--surface);border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:20px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
+.sheet h3{margin:0 0 4px;font-size:17px}
+.sheet p{margin:0 0 6px;font-size:13px;color:var(--muted)}
+
+/* 완료 */
+.done-s{padding:40px 16px 24px;gap:22px;justify-content:center;text-align:center;overflow-y:auto}
+.ok{width:76px;height:76px;border-radius:50%;margin:0 auto;display:grid;place-items:center;background:color-mix(in srgb,var(--cool) 18%,transparent);border:2px solid var(--cool)}
+.done-s h2{margin:0;font-size:22px}
+.done-s .big{font-family:var(--num);font-size:64px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.done-s .meta{color:var(--muted);font-size:13px;margin:6px 0 0}
+.done-s .say{font-size:14px;background:var(--surface);border-radius:10px;padding:10px 12px;display:inline-flex;gap:8px;align-items:center;margin:0 auto}
+@media (prefers-reduced-motion:reduce){.beep.on{animation:none}.list{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="screen home" id="sHome">
+    <div class="brand"><h1>인터벌 타이머</h1><span id="today"></span></div>
+    <div>
+      <p class="label">훈련 선택</p>
+      <div class="cards" id="cards"></div>
+      <div class="legend">
+        <span><i style="background:var(--warm)"></i>워밍업</span>
+        <span><i style="background:var(--mid)"></i>중강도</span>
+        <span><i style="background:var(--hot)"></i>고강도</span>
+        <span><i style="background:var(--cool)"></i>회복</span>
+      </div>
+    </div>
+    <div>
+      <p class="label">최근 기록</p>
+      <div class="recs" id="recs"></div>
+    </div>
+  </section>
+
+  <section class="screen" id="sRun" hidden>
+    <div class="top">
+      <div class="top-row"><span id="rTitle"></span><span id="rElapsed"></span></div>
+      <div class="total"><span class="k">전체 남은 시간</span><span class="v" id="rTotal">00:00</span></div>
+      <div class="bar" id="rBar"></div>
+    </div>
+    <div class="list" id="rList"></div>
+    <div class="ctrl" id="rCtrl"></div>
+    <div class="sheet" id="rSheet" hidden>
+      <div class="sheet-in">
+        <h3>훈련을 끝낼까요?</h3>
+        <p>지금까지 한 시간만 기록에 남깁니다.</p>
+        <button type="button" class="btn go" id="bQuit">종료하고 기록</button>
+        <button type="button" class="btn sub" id="bKeep">계속하기</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen done-s" id="sDone" hidden>
+    <div class="ok"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3CC8B4" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+    <div><h2 id="dTitle"></h2><p class="meta" id="dMeta"></p></div>
+    <div class="big" id="dTime"></div>
+    <div class="say" id="dSay"></div>
+    <button type="button" class="btn main" id="bHome" style="flex:none">처음으로</button>
+  </section>
+</div>
+
+<script>
+/* ===== 프로그램 데이터 (인터벌 프로그램.xlsx 기준, 시간 단위: 분, v = voice/Vxx.mp3) ===== */
+const PROGRAMS=[{"id":"stairA","cat":"천국의 계단","title":"패턴A · 표준형","end":{"v":"V08","t":"오늘도 인터벌 수고했습니다."},"segs":[{"n":"워밍업","v":"V01","t":"오늘도 즐겁게 운동을 시작합시다","m":2},{"n":"고강도","v":"V02","t":"첫번째 고강도 들어갑니다","m":2},{"n":"회복","v":"V03","t":"수고했어요 2분간 회복","m":2},{"n":"고강도","v":"V04","t":"두번째 고강도 시작합니다.","m":2},{"n":"회복","v":"V03","t":"수고했어요 2분간 회복","m":2},{"n":"고강도","v":"V05","t":"세번째 고강도 시작합니다.","m":2},{"n":"회복","v":"V03","t":"수고했어요 2분간 회복","m":2},{"n":"고강도","v":"V06","t":"네번째 고강도 시작합니다.","m":2},{"n":"회복","v":"V03","t":"수고했어요 2분간 회복","m":2},{"n":"고강도","v":"V07","t":"마지막 고강도 힘내세요.","m":2},{"n":"회복","v":"V03","t":"수고했어요 2분간 회복","m":2}]},{"id":"stairB","cat":"천국의 계단","title":"패턴B · 기본형","end":{"v":"V08","t":"오늘도 인터벌 수고했습니다."},"segs":[{"n":"워밍업","v":"V01","t":"오늘도 즐겁게 운동을 시작합시다","m":3},{"n":"고강도","v":"V02","t":"첫번째 고강도 들어갑니다","m":2},{"n":"회복","v":"V03","t":"수고했어요 2분간 회복","m":2},{"n":"고강도","v":"V04","t":"두번째 고강도 시작합니다.","m":2},{"n":"회복","v":"V03","t":"수고했어요 2분간 회복","m":2},{"n":"고강도","v":"V09","t":"고강도 3단계 콤비네이션 들어갑니다. 1단계 진입","m":1},{"n":"고강도","v":"V10","t":"콤비네이션 2단계 진입","m":1},{"n":"고강도","v":"V11","t":"콤비네이션 3단계 진입","m":1},{"n":"회복","v":"V03","t":"수고했어요 2분간 회복","m":2},{"n":"고강도","v":"V12","t":"마지막 고강도 하이라이트","m":2},{"n":"회복","v":"V13","t":"마무리 회복 진행합니다.","m":2}]},{"id":"mill","cat":"트레이드밀 슬로우조깅","title":"패턴A · 표준형","end":{"v":"V18","t":"오늘도 슬로우 조깅 수고했습니다."},"segs":[{"n":"워밍업","v":"V01","t":"오늘도 즐겁게 운동을 시작합시다","m":5},{"n":"중강도","v":"V14","t":"살짝 살짝 피치를 올려보세요.","m":10},{"n":"고강도","v":"V15","t":"조금 더 피치를 올려볼까요.","m":10},{"n":"회복","v":"V16","t":"잠깐 숨 좀 돌려요","m":3},{"n":"중강도","v":"V17","t":"다시 한번 뛰어 봅시다","m":10},{"n":"회복","v":"V03","t":"수고했어요 2분간 회복","m":2}]}];
+const VOICE_DIR='voice/';
+const BEEP_BEFORE=3;   // 구간 끝나기 N초 전부터 1초 간격 비프
+const VOICE_GAIN=1.0;  // 음성 볼륨
+const BEEP_GAIN=0.35;  // 비프 볼륨
+
+const COLOR={'워밍업':'var(--warm)','중강도':'var(--mid)','고강도':'var(--hot)','회복':'var(--cool)'};
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const fmt=s=>{s=Math.max(0,Math.ceil(s-1e-6));return pad(Math.floor(s/60))+':'+pad(s%60)};
+const fmtS=s=>{s=Math.max(0,Math.ceil(s-1e-6));return Math.floor(s/60)+':'+pad(s%60)};
+const SPK='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 010 7"/><path d="M19 6a8.5 8.5 0 010 12"/></svg>';
+PROGRAMS.forEach(p=>{let t=0;p.starts=p.segs.map(s=>{const a=t;t+=s.m*60;return a});p.total=t});
+
+/* ===== 기록 (기기 저장) ===== */
+const REC_KEY='interval-timer-records';
+function loadRecs(){try{return JSON.parse(localStorage.getItem(REC_KEY))||[]}catch(e){return[]}}
+function saveRec(r){const a=loadRecs();a.unshift(r);try{localStorage.setItem(REC_KEY,JSON.stringify(a.slice(0,200)))}catch(e){}}
+function renderRecs(){
+  const a=loadRecs().slice(0,10);
+  $('recs').innerHTML=a.length?a.map(r=>`<div class="rec"><span class="d">${r.date}</span><span>${r.title}${r.done?'':'<span class="x">중단</span>'}</span><span class="t">${fmt(r.sec)}</span></div>`).join('')
+    :'<div class="empty">아직 기록이 없습니다. 훈련을 마치면 여기에 쌓입니다.</div>';
+}
+function renderHome(){
+  const d=new Date();$('today').textContent=(d.getMonth()+1)+'월 '+d.getDate()+'일';
+  $('cards').innerHTML=PROGRAMS.map(p=>`<button type="button" class="card" data-id="${p.id}">
+    <div class="card-top"><div><div class="cat">${p.cat}</div><h2>${p.title}</h2></div><div class="dur">${p.total/60}<small>분</small></div></div>
+    <div class="strip">${p.segs.map(s=>`<i style="flex:${s.m};background:${COLOR[s.n]||'var(--end)'}"></i>`).join('')}</div></button>`).join('');
+  renderRecs();
+}
+
+/* ===== 오디오 엔진 (Web Audio) =====
+   규칙: 소리마다 만든 노드는 재생이 끝나면 onended에서 disconnect() → 메모리 누적 0
+   전체 훈련의 음성·비프를 시작 시점에 오디오 시계에 한 번에 예약 → 다른 앱 사용 중에도 정확한 시각에 재생 */
+let ctx=null;
+const buffers=new Map();          // Vxx → AudioBuffer (1회 디코딩 후 재사용)
+const live=new Set();             // 예약/재생 중인 소스 (중단 시 일괄 정지)
+let keep=null;                    // 백그라운드 유지용 초저음량 루프 1개
+function getCtx(){if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'playback'})}return ctx}
+async function loadVoice(id){
+  if(buffers.has(id))return buffers.get(id);
+  try{const r=await fetch(VOICE_DIR+id+'.mp3');if(!r.ok)throw 0;
+    const b=await getCtx().decodeAudioData(await r.arrayBuffer());buffers.set(id,b);return b}
+  catch(e){buffers.set(id,null);return null}
+}
+function track(src,nodes){
+  live.add(src);
+  src.onended=()=>{live.delete(src);try{src.disconnect()}catch(e){}nodes.forEach(n=>{try{n.disconnect()}catch(e){}})};
+}
+function playBuffer(buf,t){
+  const s=ctx.createBufferSource(),g=ctx.createGain();
+  s.buffer=buf;g.gain.value=VOICE_GAIN;s.connect(g);g.connect(ctx.destination);
+  track(s,[g]);s.start(t);
+}
+function beep(t,freq,dur){
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.type='sine';o.frequency.value=freq;
+  g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(BEEP_GAIN,t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g);g.connect(ctx.destination);track(o,[g]);o.start(t);o.stop(t+dur+0.02);
+}
+function startKeepAlive(){
+  if(keep)return;
+  const len=ctx.sampleRate*2,b=ctx.createBuffer(1,len,ctx.sampleRate),d=b.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*0.0003;   // 사람 귀에 들리지 않는 수준(-70dB)
+  const s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=b;s.loop=true;g.gain.value=1;
+  s.connect(g);g.connect(ctx.destination);s.start();keep={s,g};
+}
+function stopKeepAlive(){if(!keep)return;try{keep.s.stop()}catch(e){}try{keep.s.disconnect();keep.g.disconnect()}catch(e){}keep=null}
+function stopAllSounds(){[...live].forEach(s=>{try{s.stop()}catch(e){}s.onended&&s.onended()});live.clear()}
+function cue(id,t){const b=buffers.get(id);if(b)playBuffer(b,t);else{beep(t,660,0.25);beep(t+0.3,990,0.35)}} // 음성 없으면 2음 비프로 대체
+function scheduleFrom(elapsed0){   // elapsed0 이후의 모든 소리를 오디오 시계에 예약
+  const now=ctx.currentTime;
+  P.segs.forEach((s,i)=>{
+    const a=P.starts[i],b=a+s.m*60;
+    if(a>=elapsed0-0.05)cue(s.v,t0+a);
+    for(let k=BEEP_BEFORE;k>=1;k--){const bt=b-k;if(bt>elapsed0&&bt>a)beep(t0+bt,880,0.15)}
+  });
+  if(P.total>=elapsed0)cue(P.end.v,t0+P.total);
+}
+
+/* ===== 화면 켜짐 유지 ===== */
+let wake=null;
+async function lockScreen(){try{if('wakeLock' in navigator&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}}
+function unlockScreen(){try{wake&&wake.release()}catch(e){}wake=null}
+
+/* ===== 실행 상태 ===== */
+let P=null,t0=0,state='idle',pausedAt=0,cur=-1,lastSec=-1,raf=0,timer=0;
+function elapsed(){if(state==='run')return Math.min(P.total,Math.max(0,ctx.currentTime-t0));if(state==='pause')return pausedAt;return 0}
+function show(id){['sHome','sRun','sDone'].forEach(s=>$(s).hidden=s!==id)}
+
+async function openRun(p){
+  P=p;state='idle';cur=-1;lastSec=-1;
+  $('rTitle').textContent=p.cat+' · '+p.title;
+  $('rBar').innerHTML=p.segs.map(s=>`<i style="flex:${s.m};background:${COLOR[s.n]||'var(--end)'}"></i>`).join('')+'<span class="head" id="rHead"></span>';
+  show('sRun');history.pushState({run:1},'');
+  buildList(0);render(true);$('rList').scrollTop=0;
+  ctrl('loading');
+  const ids=[...new Set(p.segs.map(s=>s.v).concat(p.end.v))];
+  const res=await Promise.all(ids.map(loadVoice));
+  if(P!==p)return;
+  const miss=ids.filter((id,i)=>!res[i]);
+  ctrl('ready',miss);buildList(0);render(true);
+}
+function ctrl(mode,miss){
+  let st='';
+  if(mode==='loading')st='<div class="status">음성 준비 중…</div>';
+  if(mode==='ready'&&miss&&miss.length)st=`<div class="status warn">음성 파일 없음: ${miss.join(', ')} → 해당 구간은 비프음으로 안내</div>`;
+  const c=$('rCtrl');
+  if(mode==='loading'||mode==='ready'){
+    c.innerHTML=`<div style="display:flex;flex-direction:column;width:100%;gap:6px">${st}<div style="display:flex;gap:10px"><button type="button" class="btn sub" id="bBack">뒤로</button><button type="button" class="btn go" id="bStart" ${mode==='loading'?'disabled':''}>시작</button></div></div>`;
+    $('bBack').onclick=()=>history.back();
+    $('bStart').onclick=start;return;
+  }
+  c.innerHTML=`<button type="button" class="btn sub" id="bStop">종료</button><button type="button" class="btn main" id="bPause">${state==='run'?'일시정지':'계속'}</button>`;
+  $('bPause').onclick=()=>state==='run'?pause():resume();
+  $('bStop').onclick=()=>{$('rSheet').hidden=false};
+}
+async function start(){
+  getCtx();await ctx.resume();
+  t0=ctx.currentTime+0.4;state='run';
+  startKeepAlive();scheduleFrom(0);lockScreen();
+  ctrl('run');loop();
+}
+function pause(){pausedAt=elapsed();state='pause';stopAllSounds();ctrl('run');render(true)}
+async function resume(){
+  await ctx.resume();t0=ctx.currentTime+0.3-pausedAt;state='run';
+  scheduleFrom(pausedAt);lockScreen();ctrl('run');loop();
+}
+function loop(){
+  cancelAnimationFrame(raf);clearInterval(timer);
+  const f=()=>{if(state!=='run')return;render(false);raf=requestAnimationFrame(f)};
+  raf=requestAnimationFrame(f);
+  timer=setInterval(()=>{if(state==='run'&&elapsed()>=P.total)render(false)},1000); // 화면 숨김 상태에서도 종료 감지
+}
+function idxAt(t){let i=0;while(i<P.starts.length-1&&t>=P.starts[i+1])i++;return i}
+function render(force){
+  const e=elapsed();
+  if(state==='run'&&e>=P.total){finish(true);return}
+  const i=idxAt(e),s=P.segs[i];
+  if(i!==cur){const first=cur<0;cur=i;buildList(i);const el=$('stepCur');if(el&&!first)el.scrollIntoView({block:'start'})}
+  const segLeft=P.starts[i]+s.m*60-e,sec=Math.ceil(P.total-e);
+  if(sec!==lastSec||force){lastSec=sec;
+    $('rTotal').textContent=fmt(P.total-e);$('rElapsed').textContent='경과 '+fmt(e);
+    $('rCd').textContent=fmtS(segLeft);
+    $('rBeep').classList.toggle('on',state==='run'&&segLeft<=BEEP_BEFORE&&segLeft>0);
+  }
+  $('rProg').style.width=(100*(1-segLeft/(s.m*60)))+'%';
+  $('rHead').style.left=(100*e/P.total)+'%';
+  $('rBar').querySelectorAll('i').forEach((b,k)=>b.classList.toggle('on',k<=i));
+}
+function buildList(idx){
+  const n=P.segs.length;
+  $('rList').innerHTML=P.segs.map((s,i)=>{
+    const c=COLOR[s.n]||'var(--end)';
+    const has=buffers.get(s.v)!==null;
+    if(i===idx)return `<div class="step cur" style="--c:${c}" id="stepCur"><div class="dot">${i+1}</div>
+      <div class="now"><div class="now-h"><span class="chip">${s.n}</span><span class="pos">${i+1} / ${n} 구간 · ${s.m}분</span></div>
+      <div class="cd-row"><div class="cd" id="rCd">${fmtS(s.m*60)}</div><span class="beep" id="rBeep">삐 · 삐 · 삐</span></div>
+      <div class="prog"><i id="rProg"></i></div>
+      <div class="voice${has?'':' miss'}">${SPK}<span>${s.t}</span></div></div></div>`;
+    return `<div class="step ${i<idx?'done':''}" style="--c:${c}"><div class="dot">${i<idx?'✓':i+1}</div><div class="nm"><b>${s.n}</b><p>${s.t}</p></div><span class="len">${s.m}:00</span></div>`;
+  }).join('')+`<div class="step end" style="--c:var(--end)"><div class="dot">●</div><div class="nm"><b>종료</b><p>${P.end.t}</p></div><span class="len">완료</span></div>`;
+}
+function finish(full){
+  const sec=Math.round(full?P.total:elapsed());
+  cancelAnimationFrame(raf);clearInterval(timer);
+  if(!full)stopAllSounds();
+  state='done';unlockScreen();
+  // 종료 음성이 끝날 시간을 두고 유지음 정리
+  const endBuf=buffers.get(P.end.v);setTimeout(stopKeepAlive,full?((endBuf?endBuf.duration:1)+1.5)*1000:0);
+  const d=new Date();
+  saveRec({date:pad(d.getMonth()+1)+'.'+pad(d.getDate()),title:P.cat+' · '+P.title.split(' · ')[0],sec,done:full,id:P.id,ts:d.toISOString()});
+  $('dTitle').textContent=full?'훈련 완료':'훈련 중단';
+  $('dMeta').textContent=P.cat+' · '+P.title+' · '+d.getHours()+':'+pad(d.getMinutes());
+  $('dTime').textContent=fmt(sec);
+  $('dSay').innerHTML=full?SPK+'<span>'+P.end.t+'</span>':'<span>목표 '+fmt(P.total)+' 중 '+fmt(sec)+' 진행</span>';
+  $('rSheet').hidden=true;
+  history.replaceState({done:1},'');show('sDone');
+}
+function goHome(){if(state==='done'||state==='idle'){state='idle';P=null;renderHome();show('sHome')}}
+
+/* ===== 이벤트 ===== */
+$('cards').addEventListener('click',e=>{const c=e.target.closest('.card');if(c)openRun(PROGRAMS.find(p=>p.id===c.dataset.id))});
+$('bKeep').onclick=()=>{$('rSheet').hidden=true};
+$('bQuit').onclick=()=>finish(false);
+$('bHome').onclick=()=>history.back();
+// 안드로이드 뒤로가기: 대기/완료 화면 → 홈, 훈련 중 → 종료 확인창
+window.addEventListener('popstate',()=>{
+  if(state==='run'||state==='pause'){history.pushState({run:1},'');$('rSheet').hidden=false;return}
+  goHome();
+});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&(state==='run')){lockScreen();render(true);loop()}
+});
+renderHome();
+</script>
+<!-- ▼ 서비스워커 등록 -->
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(err){console.log('SW 등록 실패:',err)})})}
+</script>
+</body>
+</html>
